@@ -1,1 +1,1 @@
-__version__ = "0.1.0"
+from stylint.version import __version__

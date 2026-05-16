@@ -1,4 +1,4 @@
-# prose-style-lint
+# stylint
 
 Voice, formatting, and code-style rules for technical write-ups, plus a
 mechanical checker that catches the worst offenders.
@@ -13,15 +13,15 @@ Or from a local clone:
 
 ```bash
 git clone https://github.com/alexeygrigorev/prose-style-lint ~/git/prose-style-lint
-uv tool install --from ~/git/prose-style-lint prose-style-lint
+uv tool install --from ~/git/prose-style-lint stylint
 ```
 
 Then run:
 
 ```bash
-prose-style-lint docs/
-prose-style-lint --list-tags
-prose-style-lint --ignore tables docs/
+stylint docs/
+stylint --list-tags
+stylint --ignore tables docs/
 ```
 
 ## What's here
@@ -34,31 +34,32 @@ prose-style-lint --ignore tables docs/
   between definitions).
 - `polish.md` - judgment-level prose patterns the script cannot detect
   (plain words over abstractions, banned-but-context-sensitive words).
-- `check_style.py` - mechanical checker. Edit `BANNED_WORDS`,
-  `BANNED_PHRASES`, `BANNED_OPENERS` at the top to extend the
-  enforced list.
+- `stylint/` - mechanical checker package. Edit `BANNED_WORDS`,
+  `BANNED_PHRASES`, `BANNED_OPENERS` in `stylint/patterns.py` to
+  extend the enforced list.
+- `check_style.py` - compatibility wrapper for direct script usage.
 
 ## Run the checker
 
 Scan the current directory:
 
 ```bash
-python3 ~/git/prose-style-lint/check_style.py
+stylint
 ```
 
 Scan one file or a specific folder:
 
 ```bash
-python3 ~/git/prose-style-lint/check_style.py path/to/post.md
-python3 ~/git/prose-style-lint/check_style.py docs/
+stylint path/to/post.md
+stylint docs/
 ```
 
 Suppress specific rules with `--ignore`:
 
 ```bash
-python3 ~/git/prose-style-lint/check_style.py --ignore tables docs/
-python3 ~/git/prose-style-lint/check_style.py --ignore tables,long-and-commas docs/
-python3 ~/git/prose-style-lint/check_style.py --list-tags
+stylint --ignore tables docs/
+stylint --ignore tables,long-and-commas docs/
+stylint --list-tags
 ```
 
 To skip files, drop a `.prose-style-ignore` at the scan root, one
@@ -118,7 +119,7 @@ can pass that tag to `--ignore`.
 - `chained-get` - chained `.get(...).get(...)` in example Python.
 - `double-blank` - two blank lines between Python definitions.
 
-### Banned tokens (extend in `BANNED_*` dicts)
+### Banned tokens (extend in `stylint/patterns.py`)
 
 - `banned-word` - single word on the BANNED_WORDS list (e.g. `delve`,
   `leverage`, `crucial`).
@@ -167,7 +168,7 @@ can pass that tag to `--ignore`.
 1. `voice.md` while drafting.
 2. `formatting.md` for any markdown syntax question.
 3. `code-style.md` for example code blocks.
-4. Run `check_style.py` and fix every reported finding.
+4. Run `stylint` and fix every reported finding.
 5. `polish.md` for a final judgment-level pass.
 
 ## Hooking it into a project
@@ -181,7 +182,7 @@ ln -s ~/git/prose-style-lint/check_style.py .git/hooks/post-add-style-check
 Or run it from CI:
 
 ```yaml
-- run: python3 ~/git/prose-style-lint/check_style.py docs/
+- run: stylint docs/
 ```
 
 ## Notes on what's enforced vs. what's judgment

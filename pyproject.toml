@@ -1,5 +1,5 @@
 [project]
-name = "prose-style-lint"
+name = "stylint"
 dynamic = ["version"]
 description = "A markdown style linter for technical writing - flags bold/italic, em dashes, banned phrases, long sentences, label-colon openers, and more."
 readme = "README.md"
@@ -21,14 +21,16 @@ Homepage = "https://github.com/alexeygrigorev/prose-style-lint"
 Repository = "https://github.com/alexeygrigorev/prose-style-lint"
 
 [project.scripts]
-prose-style-lint = "check_style:main"
+stylint = "stylint.cli:main"
+prose-style-lint = "stylint.cli:main"
 
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
+packages = ["stylint", "stylint.rules"]
 py-modules = ["check_style", "version"]
 
 [tool.setuptools.dynamic]
-version = { attr = "version.__version__" }
+version = { attr = "stylint.__version__" }
