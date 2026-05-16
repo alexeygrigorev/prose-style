@@ -51,6 +51,7 @@ class Tag(str, Enum):
     CODE_TOO_LONG = "code-too-long"
     CONSECUTIVE_CODE = "consecutive-code"
     LEAD_IN = "lead-in"
+    LEAD_IN_MULTI = "lead-in-multi"
     CHAINED_GET = "chained-get"
     DOUBLE_BLANK = "double-blank"
     # Banned tokens
@@ -74,7 +75,7 @@ class Tag(str, Enum):
     QUESTION_OPENER = "question-opener"
     # File-level
     NOW_LETS_OVERUSE = "now-lets-overuse"
-    NOW_LETS_CLOSE = "now-lets-close"
+    NOW_LETS_COMBO = "now-lets-combo"
 
 
 @dataclass(frozen=True)
@@ -142,12 +143,17 @@ LABEL_COLON_OPENER_RE = re.compile(
 # `Note:` and `Important:` are exempt - other words ("Tip", "Warning",
 # "Notice", etc.) read as ad-hoc labels and the rule still flags them.
 CALLOUT_LABELS = frozenset({"note", "important"})
-# Filler sentence-openers: "Now", "Let's", "Let us". Fine in moderation,
-# overuse signals lazy transitions. Flagged at file scope when too many
-# appear, or when two of them sit too close together.
+# Filler sentence-openers: "Now", "Let's", "Let us". Fine in moderation;
+# overuse signals lazy transitions. Counted at file scope: flagged only
+# when there are too many in a single document.
 NOW_LETS_OPENER_RE = re.compile(r"(?:^|[.!?]\s+)(Now|Let's|Let us)\b")
 NOW_LETS_MAX_PER_FILE = 3
-NOW_LETS_MIN_GAP_LINES = 30
+# Redundant combos that should always be removed: "Now let's X" /
+# "Let's now X". Drop both softeners and use the bare imperative.
+NOW_LETS_COMBO_RE = re.compile(
+    r"(?:^|[.!?]\s+)(Now\s+let's|Let's\s+now)\b",
+    re.IGNORECASE,
+)
 
 # Paragraph opening with a rhetorical question, like "Why do we need
 # search?" or "What does this mean?". Polish.md says: state the point
@@ -494,6 +500,12 @@ def find_gerund_starts(plain: str) -> list[str]:
 def check_page(root: Path, path: Path) -> list[Finding]:
     errors: list[Finding] = []
     now_lets_hits: list[tuple[int, str]] = []
+    # State that survives flush_paragraph(). Mutable dict so the inner
+    # flush can mutate without `nonlocal`. Tracks the start line of the
+    # last flushed paragraph that was multi-sentence and ended with ':'
+    # so we can fire `lead-in-multi` if the very next block is a list
+    # or code fence.
+    flush_state: dict[str, int | None] = {"multi_colon_line": None}
     text = path.read_text()
     try:
         rel = path.relative_to(root)
@@ -641,7 +653,27 @@ def check_page(root: Path, path: Path) -> list[Finding]:
                 f"sentence opens with '-ing' word '{word}'; rewrite if it is a participial phrase",
             ))
 
+        if len(sentences) >= 2 and joined.rstrip().endswith(":"):
+            flush_state["multi_colon_line"] = start_line
+        else:
+            flush_state["multi_colon_line"] = None
+
         paragraph_lines.clear()
+
+    def emit_lead_in_multi_if_pending() -> None:
+        """If the last flushed paragraph was multi-sentence and ended
+        with ':', emit the lead-in-multi finding (called when we see a
+        list or code fence)."""
+        line_no = flush_state.get("multi_colon_line")
+        if line_no is None:
+            return
+        errors.append(Finding(
+            rel, line_no, Tag.LEAD_IN_MULTI,
+            "paragraph ending in ':' has multiple sentences but introduces a "
+            "list or code block; make the lead-in (the sentence with the colon) "
+            "its own one-sentence paragraph",
+        ))
+        flush_state["multi_colon_line"] = None
 
     for line_no, line in enumerate(lines, start=1 + line_offset):
         stripped = line.strip()
@@ -657,6 +689,8 @@ def check_page(root: Path, path: Path) -> list[Finding]:
 
         if starts_fence:
             flush_paragraph()
+            if not in_code:
+                emit_lead_in_multi_if_pending()
             if not in_code:
                 fence_tail = line.lstrip()[3:].strip()
                 if not fence_tail:
@@ -726,6 +760,7 @@ def check_page(root: Path, path: Path) -> list[Finding]:
             flush_paragraph()
         elif LIST_RE.match(line):
             flush_paragraph()
+            emit_lead_in_multi_if_pending()
             if last_heading_line is not None and not seen_prose_since_heading:
                 errors.append(Finding(
                     rel, line_no, Tag.LEAD_IN,
@@ -786,6 +821,12 @@ def check_page(root: Path, path: Path) -> list[Finding]:
             ))
         for m in NOW_LETS_OPENER_RE.finditer(plain):
             now_lets_hits.append((line_no, m.group(1)))
+        for m in NOW_LETS_COMBO_RE.finditer(plain):
+            errors.append(Finding(
+                rel, line_no, Tag.NOW_LETS_COMBO,
+                f"redundant '{m.group(1)}' opener; drop both and use the bare imperative "
+                "(e.g., 'Now let's run the script.' -> 'Run the script.')",
+            ))
 
         if BARE_URL_RE.search(plain):
             errors.append(Finding(rel, line_no, Tag.BARE_URL, "bare URL in prose; use [name](url)"))
@@ -819,14 +860,6 @@ def check_page(root: Path, path: Path) -> list[Finding]:
             "vary openers - try 'After that', 'Then', 'Next', or drop the "
             "softener entirely and use a bare imperative",
         ))
-    for (prev_line, prev_word), (this_line, this_word) in zip(now_lets_hits, now_lets_hits[1:]):
-        gap = this_line - prev_line
-        if 0 < gap < NOW_LETS_MIN_GAP_LINES:
-            errors.append(Finding(
-                rel, this_line, Tag.NOW_LETS_CLOSE,
-                f"'{this_word}' opener only {gap} lines after '{prev_word}' on line {prev_line}; "
-                "try 'After that' / 'Then' / 'Next' or drop the softener",
-            ))
 
     return errors
 

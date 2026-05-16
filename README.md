@@ -91,6 +91,9 @@ can pass that tag to `--ignore`.
   between them.
 - `lead-in` - code block or list directly under a heading with no
   lead-in sentence.
+- `lead-in-multi` - the paragraph that introduces a list or code
+  block has multiple sentences and ends with `:`. The lead-in
+  sentence should be its own one-sentence paragraph.
 - `chained-get` - chained `.get(...).get(...)` in example Python.
 - `double-blank` - two blank lines between Python definitions.
 
@@ -133,9 +136,10 @@ can pass that tag to `--ignore`.
 ### File-level
 
 - `now-lets-overuse` - file uses more than 3 sentence-starting
-  `Now`/`Let's` openers total.
-- `now-lets-close` - two `Now`/`Let's` openers within 30 lines of
-  each other.
+  `Now`/`Let's` openers total. Vary openers or use the bare imperative.
+- `now-lets-combo` - sentence starts with the redundant pair
+  `Now let's...` or `Let's now...`. Drop both softeners and use the
+  bare imperative.
 
 ## Reading order for a write-up
 
