@@ -105,6 +105,11 @@ LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 QUESTION_HEADING_RE = re.compile(
     r"^#{1,6}\s+(Why|How|What|When|Where|Which|Who)\b"
 )
+# Allow-list for question-word headings that read as standard section
+# names rather than rhetorical questions.
+QUESTION_HEADING_ALLOWLIST = frozenset({
+    "how it works",
+})
 QUESTION_MARK_HEADING_RE = re.compile(r"^#{1,6}\s+.*\?\s*$")
 DEEP_HEADING_RE = re.compile(r"^#{3,}\s")
 ITALIC_RE = re.compile(
@@ -765,7 +770,9 @@ def check_page(root: Path, path: Path) -> list[Finding]:
         if HEADING_RE.match(line):
             flush_paragraph()
             if QUESTION_HEADING_RE.match(line):
-                errors.append(Finding(rel, line_no, Tag.HEADING_QUESTION_WORD, "avoid question-word headings"))
+                heading_text = line.lstrip("#").strip().rstrip("?").strip().lower()
+                if heading_text not in QUESTION_HEADING_ALLOWLIST:
+                    errors.append(Finding(rel, line_no, Tag.HEADING_QUESTION_WORD, "avoid question-word headings"))
             if QUESTION_MARK_HEADING_RE.match(line):
                 errors.append(Finding(rel, line_no, Tag.HEADING_QUESTION_MARK, "heading ends with '?' (use a statement)"))
             if DEEP_HEADING_RE.match(line):
