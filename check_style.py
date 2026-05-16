@@ -339,6 +339,18 @@ COLON_INLINE_LIST_RE = re.compile(
 # a "consider a bullet list" flag. Three is the smallest run that reads
 # as repeated parallel structure rather than coincidence.
 PARALLEL_SENTENCE_MIN_RUN = 3
+
+# Shared decision hint embedded in error messages that suggest list
+# conversion. The heuristic lives here (and not only in polish.md)
+# because agents reading the lint output often skip reference docs.
+LIST_HEURISTIC_HINT = (
+    "Convert to a bullet list only when BOTH (a) each item is 3+ words "
+    "and items are parallel in structure, AND (b) the author already "
+    "signalled enumeration (colon + items, or 3+ adjacent sentences "
+    "with the same opener). Skip conversion when items end in "
+    "'and others'/'and more'/'and so on', when commas are clausal "
+    "(joining clauses, not items), or when inline reads fine."
+)
 ABBREVIATION_RE = re.compile(
     r"\b(?:e\.g|i\.e|etc|vs|cf|Mr|Mrs|Ms|Dr|St|Jr|Sr|U\.S|U\.K|a\.m|p\.m|Inc|Ltd|Co)\.",
     re.IGNORECASE,
@@ -441,24 +453,27 @@ def check_page(root: Path, path: Path) -> list[str]:
             if too_long and commas > 0:
                 comma_word = "comma" if commas == 1 else "commas"
                 errors.append(
-                    f"{rel}:{start_line}: sentence has {wc} words and {commas} {comma_word}; "
-                    "split it into shorter sentences, or convert to a bullet list "
-                    "if the commas are enumerating items"
+                    f"{rel}:{start_line}: [long-and-commas] sentence has {wc} words and {commas} {comma_word}. "
+                    f"Fixes: (1) split into shorter sentences; (2) convert to a bullet list. "
+                    f"{LIST_HEURISTIC_HINT}"
                 )
             elif too_long:
                 errors.append(
-                    f"{rel}:{start_line}: sentence has {wc} words (max {SENTENCE_MAX_WORDS}); "
-                    "split it into shorter sentences"
+                    f"{rel}:{start_line}: [long-sentence] sentence has {wc} words (max {SENTENCE_MAX_WORDS}). "
+                    f"Fixes: (1) split into shorter sentences; (2) drop filler words; "
+                    f"(3) convert to a list if you find embedded enumeration. {LIST_HEURISTIC_HINT}"
                 )
             elif too_many_commas:
                 errors.append(
-                    f"{rel}:{start_line}: sentence has {commas} commas (max {SENTENCE_MAX_COMMAS}); "
-                    "convert the enumeration into a bullet list"
+                    f"{rel}:{start_line}: [many-commas] sentence has {commas} commas (max {SENTENCE_MAX_COMMAS}). "
+                    f"Fixes: (1) convert to a bullet list; (2) split into shorter sentences. "
+                    f"{LIST_HEURISTIC_HINT}"
                 )
             if COLON_INLINE_LIST_RE.search(sentence):
                 errors.append(
-                    f"{rel}:{start_line}: colon-introduced inline list with 3+ items; "
-                    "convert the items into bullets"
+                    f"{rel}:{start_line}: [colon-inline] colon-introduced inline run of 3+ items. "
+                    f"Fixes: (1) convert items to bullets; (2) drop the colon and let items flow as prose; "
+                    f"(3) split the sentence in two. {LIST_HEURISTIC_HINT}"
                 )
 
         # Parallel-sentence runs: 3+ adjacent sentences sharing a 2-word
@@ -480,8 +495,11 @@ def check_page(root: Path, path: Path) -> list[str]:
                 run_len = i - run_start
                 if run_len >= PARALLEL_SENTENCE_MIN_RUN and prefixes[run_start]:
                     errors.append(
-                        f"{rel}:{start_line}: {run_len} consecutive sentences "
-                        f"start with '{prefixes[run_start]}'; convert to a bullet list"
+                        f"{rel}:{start_line}: [parallel-sentences] {run_len} consecutive sentences "
+                        f"start with '{prefixes[run_start]}'. "
+                        f"Fixes: (1) convert to a bullet list (strong signal: author wrote list shape "
+                        f"in prose); (2) vary the sentence openers if the items aren't really parallel. "
+                        f"{LIST_HEURISTIC_HINT}"
                     )
                 run_start = i
 
@@ -489,14 +507,22 @@ def check_page(root: Path, path: Path) -> list[str]:
             label_before_colon = joined.split(":", 1)[0].strip().lower()
             if label_before_colon not in CALLOUT_LABELS:
                 errors.append(
-                    f"{rel}:{start_line}: label-colon paragraph opener "
-                    "('The problem: ...', 'Goal: ...', 'What we want: ...'); "
-                    "drop the label and state the point directly"
+                    f"{rel}:{start_line}: [label-colon] paragraph opens with a "
+                    "label-colon pattern ('The problem: ...', 'Goal: ...', "
+                    "'What we want: ...'). "
+                    "Fixes: (1) drop the label and state the point directly; "
+                    "(2) rewrite as a sentence introducing the topic. "
+                    "Exempt callouts: 'Note:' and 'Important:'."
                 )
         if PARAGRAPH_QUESTION_OPENER_RE.match(joined):
             errors.append(
-                f"{rel}:{start_line}: paragraph opens with a rhetorical question; "
-                "state the point directly instead"
+                f"{rel}:{start_line}: [question-opener] paragraph opens with a "
+                "rhetorical question. "
+                "Fixes: (1) drop the question and lead with the substantive "
+                "claim it gestures at; (2) rewrite the answer as the opening "
+                "sentence (e.g., 'Why do we need X?' -> 'X exists because...'); "
+                "(3) keep the question only if a real reader is likely to ask "
+                "exactly that wording."
             )
 
         for phrase, hint in BANNED_PHRASES.items():
