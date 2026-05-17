@@ -1,6 +1,6 @@
 # Voice polish
 
-Read this after the mechanical style pass (`check_style.py`). The script
+Read this after the mechanical style pass (`stylint`). The script
 catches banned tokens but not judgment-level prose problems. Re-read each
 file with the patterns below in mind and rewrite anything that matches.
 
@@ -92,10 +92,10 @@ reader work harder than they need to.
 
 ## Banned words and patterns
 
-The mechanical token / phrase / opener lists are enforced by
-`check_style.py` (`BANNED_WORDS`, `BANNED_PHRASES`,
-`BANNED_OPENERS` near the top of the file). Run the script and fix
-what it reports. Add new entries to the script, not to this doc.
+The mechanical token / phrase / opener lists are enforced by `stylint`
+(`BANNED_WORDS`, `BANNED_PHRASES`, `BANNED_OPENERS` in
+`stylint/patterns.py`). Run the script and fix what it reports. Add
+new entries to the script, not to this doc.
 
 The patterns below need judgment and are not in the script:
 

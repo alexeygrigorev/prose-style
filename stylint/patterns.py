@@ -268,7 +268,7 @@ COLON_INLINE_LIST_RE = re.compile(
 PARALLEL_SENTENCE_MIN_RUN = 3
 
 # Shared decision hint embedded in error messages that suggest list
-# conversion. The heuristic lives here (and not only in polish.md)
+# conversion. The heuristic lives here (and not only in style-guide/polish.md)
 # because agents reading the lint output often skip reference docs.
 LIST_HEURISTIC_HINT = (
     "Convert to a bullet list only when BOTH (a) each item is 3+ words "

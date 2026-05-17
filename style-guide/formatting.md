@@ -4,7 +4,7 @@ Mechanical markdown rules (no bold/italic, no tables, no em dashes,
 smart quotes, backticks-in-link-text, consecutive code blocks, code
 block language tag, code block max length, lead-in for code/list,
 blank line after frontmatter, heading depth, question-word headings,
-bare URLs) are enforced by `check_style.py` - run it and follow the
+bare URLs) are enforced by `stylint` - run it and follow the
 inline guidance for each finding.
 
 This doc collects the formatting choices that need agent judgment.

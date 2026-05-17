@@ -26,13 +26,13 @@ stylint --ignore tables docs/
 
 ## What's here
 
-- `voice.md` - tone, voice rules, content rules (include/leave out).
-- `formatting.md` - markdown mechanics: headings, code blocks, lists,
+- `style-guide/voice.md` - tone, voice rules, content rules (include/leave out).
+- `style-guide/formatting.md` - markdown mechanics: headings, code blocks, lists,
   links, asides.
-- `code-style.md` - educational code style inside example blocks
+- `style-guide/code-style.md` - educational code style inside example blocks
   (no defensive `try/except`, no chained `.get()`, one blank line
   between definitions).
-- `polish.md` - judgment-level prose patterns the script cannot detect
+- `style-guide/polish.md` - judgment-level prose patterns the script cannot detect
   (plain words over abstractions, banned-but-context-sensitive words).
 - `stylint/` - mechanical checker package. Edit `BANNED_WORDS`,
   `BANNED_PHRASES`, `BANNED_OPENERS` in `stylint/patterns.py` to
@@ -179,11 +179,11 @@ can pass that tag to `--ignore`.
 
 ## Reading order for a write-up
 
-1. `voice.md` while drafting.
-2. `formatting.md` for any markdown syntax question.
-3. `code-style.md` for example code blocks.
+1. `style-guide/voice.md` while drafting.
+2. `style-guide/formatting.md` for any markdown syntax question.
+3. `style-guide/code-style.md` for example code blocks.
 4. Run `stylint` and fix every reported finding.
-5. `polish.md` for a final judgment-level pass.
+5. `style-guide/polish.md` for a final judgment-level pass.
 
 ## Hooking it into a project
 

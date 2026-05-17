@@ -32,7 +32,7 @@ Use plain reader-facing verbs:
 - `code repo`, `final code`, or `working version`, not `reference
   implementation`
 
-The script (`check_style.py`) catches mechanical banned phrases via
+The script (`stylint`) catches mechanical banned phrases via
 its `BANNED_PHRASES` list. This doc lists only the judgment calls.
 
 The rule is not to ban every technical word. Use judgment:
