@@ -129,6 +129,7 @@ BANNED_WORDS: dict[str, str] = {
     "remarkably": "drop the editorializing",
     "faithful": "drop the metaphor; describe the concrete match",
     "itself": "use sparingly; if it does not change the meaning, drop it",
+    "non-negotiable": "drop the corporate-speak; name what is actually required",
 }
 
 # Multi-word banned phrases. Substring match, case-insensitive.
