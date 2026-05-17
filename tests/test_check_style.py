@@ -122,6 +122,8 @@ def test_banned_word_negative(tmp_path):
         "the shape of",
         "on the wire",
         "tight inner loop",
+        "lean on",
+        "leaned on",
         "reusable principle",
     ],
 )

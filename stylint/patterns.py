@@ -196,6 +196,8 @@ BANNED_PHRASES: dict[str, str] = {
     "out of the box": "describe the default behavior in plain words",
     "tight inner loop": "describe the actual workflow (rebuild time, edit-test cycle)",
     "tight loop": "describe the actual workflow (rebuild time, edit-test cycle)",
+    "lean on": "use a direct verb: use / depend on / rely on / ask",
+    "leaned on": "use a direct verb: used / depended on / relied on / asked",
     "reusable principle": "name the workflow or habit directly",
     "serves as": "use 'is'",
     "stands as": "use 'is'",
