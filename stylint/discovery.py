@@ -4,6 +4,23 @@ import fnmatch
 from pathlib import Path
 
 
+DEFAULT_IGNORE_PATTERNS = (
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+)
+
+
 def load_ignore_patterns(root: Path) -> list[str]:
     ignore_file = root / ".prose-style-ignore"
     if not ignore_file.is_file():
@@ -27,15 +44,25 @@ def is_ignored(rel: Path, patterns: list[str]) -> bool:
     return False
 
 
-def iter_markdown_pages(paths: list[Path]) -> list[tuple[Path, Path]]:
+def iter_markdown_pages(
+    paths: list[Path],
+    exclude_patterns: list[str] | None = None,
+) -> list[tuple[Path, Path]]:
     """Return [(root, page)] pairs so error paths can stay relative to the scan root."""
+    exclude_patterns = exclude_patterns or []
     pages: list[tuple[Path, Path]] = []
     for p in paths:
         p = p.resolve()
         if p.is_file() and p.suffix.lower() == ".md":
+            if is_ignored(Path(p.name), exclude_patterns):
+                continue
             pages.append((p.parent, p))
         elif p.is_dir():
-            ignore = load_ignore_patterns(p)
+            ignore = [
+                *DEFAULT_IGNORE_PATTERNS,
+                *load_ignore_patterns(p),
+                *exclude_patterns,
+            ]
             for md in sorted(p.rglob("*.md")):
                 rel = md.relative_to(p)
                 if is_ignored(rel, ignore):

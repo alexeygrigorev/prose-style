@@ -1,9 +1,7 @@
 # Refactoring plan
 
-`check_style.py` is the whole application today: CLI, data models,
-regexes, file discovery, markdown scanning, prose rules, code-block
-rules, formatting, and compatibility exports. The refactor should make
-those responsibilities visible without changing behavior first.
+`check_style.py` still owns the whole application. The refactor should expose
+the main responsibilities without changing behavior first.
 
 The key constraint is compatibility. Users can run `check_style.py`
 directly, packaging exposes `stylint = "stylint.cli:main"` and keeps
@@ -13,6 +11,8 @@ package API is explicit and documented.
 
 ## Goals
 
+Keep the first refactor narrow:
+
 - Keep behavior and output stable during the first passes.
 - Preserve existing imports from `check_style`.
 - Move pure helpers and data before moving stateful scanning logic.
@@ -21,6 +21,8 @@ package API is explicit and documented.
   through smaller modules.
 
 ## Target structure
+
+Use this package layout:
 
 ```text
 stylint/
@@ -67,13 +69,12 @@ usage.
 
 Move definitions that do not depend on scanner state.
 
-- `tags.py`: `Tag`.
-- `models.py`: `Finding`.
-- `patterns.py`: compiled regexes, banned word dictionaries, thresholds,
+- `tags.py` - `Tag`.
+- `models.py` - `Finding`.
+- `patterns.py` - compiled regexes, banned word dictionaries, thresholds,
   and message constants.
-- `text.py`: `strip_frontmatter`, `strip_inline_code`, `strip_link_urls`,
-  `strip_double_quoted`, `count_sentences`, `split_sentences`,
-  `count_words`, and `find_gerund_starts`.
+- `text.py` - frontmatter stripping, inline-code stripping, sentence helpers,
+  word counts, and gerund detection.
 
 Keep `check_style.py` re-exporting the names used by tests. This phase
 should be mostly import changes plus tests.
@@ -97,7 +98,9 @@ Move argument parsing and terminal output away from lint logic.
 - `output.py`: grouped finding formatter and pluralization helper.
 
 The CLI should call `iter_markdown_pages` and `check_page`, then format
-findings. Keep exit codes unchanged:
+findings.
+
+Keep exit codes unchanged:
 
 - `0`: success or no markdown files found.
 - `1`: lint findings.
@@ -106,18 +109,17 @@ findings. Keep exit codes unchanged:
 ## Phase 4: Split `check_page` without changing its scanner
 
 `check_page` is the risky center of the codebase. It tracks code fences,
-paragraph flushing, frontmatter line offsets, heading lead-ins,
-consecutive code blocks, and file-level `Now` / `Let's` counters.
+paragraph flushing, heading lead-ins, and file-level counters.
 
 Do not replace that control flow first. Extract small functions from the
 existing branches while keeping the same loop.
 
-Suggested helper boundaries:
+Use these helper boundaries:
 
 - `check_frontmatter_spacing(text, rel) -> list[Finding]`
 - `check_heading(line, line_no, rel) -> list[Finding]`
 - `check_markdown_line(line, line_no, rel) -> list[Finding]`
-- `check_plain_prose_line(line, plain, line_no, rel) -> list[Finding]`
+- `check_plain_text_line(line, plain, line_no, rel) -> list[Finding]`
 - `check_code_line(line, code_lang, line_no, rel) -> list[Finding]`
 - `check_paragraph(paragraph_lines, rel) -> ParagraphResult`
 - `check_file_level(now_lets_hits, rel) -> list[Finding]`
@@ -129,24 +131,25 @@ Suggested helper boundaries:
 
 Once Phase 4 is stable, move extracted helpers into rule modules.
 
-- `rules/markdown.py`: bold, italic, table rows, horizontal rules, dash
+- `rules/markdown.py` - bold, italic, table rows, horizontal rules, dash
   forms, smart quotes, links, URLs.
-- `rules/headings.py`: question headings, heading depth, lazy headings.
-- `rules/code.py`: language tags, long code blocks, chained `.get`,
+- `rules/headings.py` - question headings, heading depth, lazy headings.
+- `rules/code.py` - language tags, long code blocks, chained `.get`,
   double blank lines, consecutive code blocks, lead-ins.
-- `rules/banned.py`: banned words, phrases, openers, cross-line phrases.
-- `rules/prose.py`: sentence length, comma count, paragraph length,
-  label-colon, rhetorical question openers, gerund openers, semicolons,
-  anaphoric `No X, no Y`, clefts, third-person references.
-- `rules/file_level.py`: file-scope `Now` / `Let's` overuse.
+- `rules/banned.py` - banned words, phrases, openers, cross-line phrases.
+- `rules/prose.py` - sentence length, comma count, paragraph length,
+  label-colon, question openers, gerund openers, and semicolons.
+- `rules/file_level.py` - file-scope `Now` / `Let's` overuse.
 
 The scanner in `lint.py` should orchestrate state and call these rule
 functions.
 
 ## Phase 6: Consider a block scanner
 
-Only after the smaller extraction is stable, consider converting the
-line loop into a markdown block scanner that emits objects such as:
+Only after the smaller extraction is stable, consider converting the line loop
+into a markdown block scanner.
+
+It could emit these objects:
 
 - `Paragraph`
 - `Heading`
@@ -164,33 +167,34 @@ so this should be a later refactor, not the starting point.
 Keep the current end-to-end tests for `check_page`. Add module-level
 tests only when a helper becomes non-trivial.
 
-Priority coverage before deeper scanner changes:
+Cover these cases before deeper scanner changes:
 
-- frontmatter line-number offsets;
-- banned phrases across lines;
-- code block length and language tags;
-- heading-to-list and heading-to-code lead-ins;
-- consecutive code blocks;
-- paragraph sentence counts;
-- file-level `Now` / `Let's` overuse;
-- ignored tags and grouped CLI output.
+- frontmatter line-number offsets
+- banned phrases across lines
+- code block length and language tags
+- heading-to-list and heading-to-code lead-ins
+- consecutive code blocks
+- paragraph sentence counts
+- file-level `Now` / `Let's` overuse
+- ignored tags and grouped CLI output
 
 Run the full test suite after each phase. If output formatting is touched,
 add CLI-level tests before changing the implementation further.
 
 ## Risks
 
+Watch these areas.
+
 - Line numbers can drift when frontmatter and paragraph flushing move.
 - Cross-line banned phrase detection can double-fire if line and paragraph
   checks are split carelessly.
-- Lead-in rules depend on previous heading state and whether prose has
-  appeared since that heading.
+- Lead-in rules depend on previous heading state and text after that heading.
 - Code block rules depend on fence transitions, not only on code lines.
 - Moving constants too aggressively can make rule modules harder to read.
 
 ## First implementation pass
 
-The first pass should be deliberately mechanical:
+The first pass should be deliberately mechanical.
 
 1. Create the `stylint` package directory.
 2. Move `Tag`, `Finding`, text helpers, constants, and discovery helpers.

@@ -12,10 +12,12 @@ from ..patterns import (
     PARAGRAPH_MAX_SENTENCES,
     PARAGRAPH_QUESTION_OPENER_RE,
     PARALLEL_COMPLETION_TEST,
+    PAST_TENSE_FRAGMENT_RE,
     REPEATED_AND_RE,
     PARALLEL_SENTENCE_MIN_RUN,
     SENTENCE_MAX_COMMAS,
     SENTENCE_MAX_WORDS,
+    SHORT_LABEL_COLON_RE,
     THIS_IS_WHAT_ABOUT_RE,
     BANNED_PHRASES,
     NOW_LETS_COMBO_RE,
@@ -43,8 +45,10 @@ __all__ = [
     "PARAGRAPH_MAX_SENTENCES",
     "PARAGRAPH_QUESTION_OPENER_RE",
     "PARALLEL_SENTENCE_MIN_RUN",
+    "PAST_TENSE_FRAGMENT_RE",
     "SENTENCE_MAX_COMMAS",
     "SENTENCE_MAX_WORDS",
+    "SHORT_LABEL_COLON_RE",
     "THIS_IS_WHAT_ABOUT_RE",
 ]
 
@@ -249,6 +253,19 @@ def check_paragraph(paragraph_lines: list[tuple[int, str]], rel) -> tuple[list[F
                 start_line,
                 Tag.GERUND_OPENER,
                 f"sentence opens with '-ing' word '{word}'; rewrite if it is a participial phrase",
+            )
+        )
+
+    for match in PAST_TENSE_FRAGMENT_RE.finditer(joined):
+        verb = match.group(1)
+        findings.append(
+            Finding(
+                rel,
+                start_line,
+                Tag.PAST_TENSE_FRAGMENT,
+                f"sentence starts with past-tense action or participle '{verb}'. "
+                "Add the actor ('I ran...', 'we add...'), rewrite in present tense, "
+                "or rewrite the participle clause.",
             )
         )
 

@@ -49,6 +49,13 @@ ANAPHORIC_NO_RE = re.compile(
 LABEL_COLON_OPENER_RE = re.compile(
     r"^(?:The\s+)?[A-Z][a-zA-Z]+(?:\s+[A-Za-z]+){0,2}:\s+\w+\s+\w"
 )
+# Standalone two- or three-word label lines like "Rule of thumb:" or
+# "What we cover:". These read as documentation labels rather than
+# prose lead-ins. One-word labels are handled by the paragraph opener
+# rule above when they introduce prose, with Note:/Important: exempted.
+SHORT_LABEL_COLON_RE = re.compile(
+    r"^[A-Z][A-Za-z'-]+(?:\s+[A-Za-z][A-Za-z'-]+){1,2}:\s*$"
+)
 # Single-word labels that work as callout / admonition blocks. Only
 # `Note:` and `Important:` are exempt - other words ("Tip", "Warning",
 # "Notice", etc.) read as ad-hoc labels and the rule still flags them.
@@ -132,6 +139,8 @@ BANNED_WORDS: dict[str, str] = {
     "prose": "use 'text', 'explanation', 'paragraph', or a concrete noun",
     "itself": "use sparingly; if it does not change the meaning, drop it",
     "non-negotiable": "drop the corporate-speak; name what is actually required",
+    "inspect": "use 'look at' unless this is an exact API/tool word",
+    "love": "use 'like' or name the concrete reason",
 }
 
 # Multi-word banned phrases. Substring match, case-insensitive.
@@ -156,12 +165,15 @@ BANNED_PHRASES: dict[str, str] = {
     "framework-agnostic": "use 'works across frameworks'",
     "direct command interception": "use 'run slash commands before the model sees them'",
     "further reading": "use 'to learn more'",
+    "for follow-up reading": "use 'to learn more'",
     "known-good version": "use 'working version'",
     "a clear pattern emerged": "drop the cliche",
     "here's the catch": "drop the cliche",
     "plot twist": "drop the cliche",
     "but there's a twist": "drop the cliche",
     "now for the fun part": "drop the cliche",
+    "nothing fancy": "drop the filler; state the concrete benefit",
+    "nails it": "use 'works' or name the concrete behavior",
     "marks a pivotal moment": "drop the puffery",
     "a testament to": "drop the puffery",
     "reflects broader trends": "drop the puffery",
@@ -185,6 +197,7 @@ BANNED_PHRASES: dict[str, str] = {
     "in this section we will": "drop the meta-narration",
     "below you will find": "drop the meta-narration",
     "the next few paragraphs": "drop the meta-narration",
+    "this write-up is based on": "open with what the reader will build, compare, or do",
     "as we shall see": "drop the meta-narration",
     "for reasons that will become clear": "give the reason on the same line",
     "the single most": "drop the superlative",
@@ -210,12 +223,17 @@ BANNED_PHRASES: dict[str, str] = {
     "let me explain": "drop the filler",
     "let me expand on": "drop the filler",
     "i want to be clear": "state the thing directly",
+    "you could also": "avoid alternate-tactic padding; keep one clear path or example",
+    "as mentioned above": "drop the backward reference; trust the reader or move the content",
+    "as i mentioned above": "drop the backward reference; trust the reader or move the content",
+    "as described earlier": "drop the backward reference; trust the reader or move the content",
     "is a reminder that": "drop the abstract framing; state the point directly",
     "pull request ceremony": "drop the jargon noun",
     "one benefit of": "state the benefit directly",
     "one clear": "name the exact value or property instead of using this filler",
     "on the table": "say it directly",
     "in action": "drop the cliche; describe what is actually happening",
+    "rule of thumb": "state the rule directly",
     "the power of": "drop the abstract framing; describe what the design does",
     "the advantage of": "drop the abstract framing; name the concrete benefit",
     "the beauty of": "drop the puffery; describe the concrete property",
@@ -246,6 +264,93 @@ BANNED_PHRASE_PATTERNS: dict[str, tuple[re.Pattern[str], str]] = {
         ),
         "drop the forward reference; name the thing directly",
     ),
+    "the/a ... result is": (
+        re.compile(
+            r"(?:^|[.!?]\s+)(?:the|a|an)\s+(?:[A-Za-z][\w-]*\s+){0,2}"
+            r"result\s+(?:is|was)\b",
+            re.IGNORECASE,
+        ),
+        "name the actor or concrete output directly: 'we now have', "
+        "'this creates', 'the command prints', 'the script returns'",
+    ),
+    "the/a ... flow is": (
+        re.compile(
+            r"(?:^|[.!?]\s+)(?:the|a|an)\s+(?:[A-Za-z][\w-]*\s+){0,2}"
+            r"flow\s+(?:is|was)\b",
+            re.IGNORECASE,
+        ),
+        "drop the topic-introducer and start with the actions in the flow",
+    ),
+    "the/a ... setup is": (
+        re.compile(
+            r"(?:^|[.!?]\s+)(?:the|a|an)\s+(?:[A-Za-z][\w-]*\s+){0,2}"
+            r"setup\s+(?:is|was)\b",
+            re.IGNORECASE,
+        ),
+        "drop the recap sentence and move to the next concrete point",
+    ),
+    "the/a ... hurdle is": (
+        re.compile(
+            r"(?:^|[.!?]\s+)(?:the|a|an|another|final)\s+"
+            r"(?:[A-Za-z][\w-]*\s+){0,2}hurdle\s+(?:is|was)\b",
+            re.IGNORECASE,
+        ),
+        "drop the abstract hurdle label and name the concrete problem",
+    ),
+    "the/a ... example:": (
+        re.compile(
+            r"(?:^|[.!?]\s+)(?:the|a|an|another|recent)\s+"
+            r"(?:[A-Za-z][\w-]*\s+){0,2}example:\s+",
+            re.IGNORECASE,
+        ),
+        "drop the example label and start with the example itself",
+    ),
+    "the/a ... option is": (
+        re.compile(
+            r"(?:^|[.!?]\s+)(?:the|a|an|another)\s+"
+            r"(?:[A-Za-z][\w-]*\s+){0,2}option\s+(?:is|was)\b",
+            re.IGNORECASE,
+        ),
+        "avoid alternate-tactic padding; keep one clear path or example",
+    ),
+    "here is a ...": (
+        re.compile(
+            r"(?:^|[.!?]\s+)here(?:'s|\s+is)\s+"
+            r"(?:a|an|the)\s+[A-Za-z][\w-]*\b",
+            re.IGNORECASE,
+        ),
+        "drop the label and state the concrete point directly",
+    ),
+    "... buys us": (
+        re.compile(
+            r"\b(?:buy|buys|bought|buying)\s+"
+            r"(?:us|you|me|them)\b",
+            re.IGNORECASE,
+        ),
+        "use 'give' or name the concrete result directly",
+    ),
+    "content as actor": (
+        re.compile(
+            r"\b(?:the\s+)?(?:previous|next|current|this|that)?\s*"
+            r"(?:lesson|section|chapter|part|module|unit|workshop|tutorial|"
+            r"guide|page|article|write-up|readme|document|doc)\s+"
+            r"(?:put|puts|placed|places|add|adds|added|build|builds|built|"
+            r"create|creates|created|implement|implements|implemented|"
+            r"deploy|deploys|deployed|configure|configures|configured|"
+            r"fetch|fetches|fetched|load|loads|loaded|install|installs|"
+            r"installed|start|starts|started)\b",
+            re.IGNORECASE,
+        ),
+        "content does not act; write 'in the previous lesson, we added' "
+        "or name the concrete code/output",
+    ),
+    "scope/source material opener": (
+        re.compile(
+            r"^(?:#{1,6}\s+)?(?:scope|source material)\b",
+            re.IGNORECASE,
+        ),
+        "open with what the reader will build, compare, or do",
+    ),
 }
 
 # Sentence openers. Capitalized, must start the line (allowing optional list
@@ -266,6 +371,7 @@ WORD_RES: dict[str, re.Pattern[str]] = {
     for word in BANNED_WORDS
 }
 CODE_BLOCK_MAX_LINES = 40
+BLOCKQUOTE_MAX_LINES = 3
 HEADING_RE = re.compile(r"^#{1,6}\s")
 LIST_RE = re.compile(r"^\s*[-*]\s|^\s*\d+\.\s")
 BLOCKQUOTE_RE = re.compile(r"^\s*>")
@@ -294,7 +400,7 @@ COLON_INLINE_LIST_RE = re.compile(
 PARALLEL_SENTENCE_MIN_RUN = 3
 
 # Shared decision hint embedded in error messages that suggest list
-# conversion. The heuristic lives here (and not only in style-guide/polish.md)
+# conversion. The heuristic lives here (and not only in stylint/style_guide/polish.md)
 # because agents reading the lint output often skip reference docs.
 LIST_HEURISTIC_HINT = (
     "Convert to a bullet list only when BOTH (a) each item is 3+ words "
@@ -457,3 +563,20 @@ GERUND_NOUN_EXCEPTIONS = {
 _PARTICIPIAL_TAIL = r"\b[^.!?]{0,150},\s+(?:I|we|you|they|he|she|it|the|a|an|this|that|these|those)\b"
 GERUND_LINE_START_RE = re.compile(r"^([A-Z][a-z]{3,}ing)" + _PARTICIPIAL_TAIL)
 GERUND_MIDLINE_RE = re.compile(r"[.!?]\s+([A-Z][a-z]{3,}ing)" + _PARTICIPIAL_TAIL)
+
+# Subjectless past-action fragments like "Ran the workshop." or
+# "Added tests." These usually come from notes or commit messages and
+# need an explicit actor in article/tutorial prose: "I ran..." or
+# "We add...". Keep the list conservative; many -ed words are valid
+# adjectives ("finished app", "managed runtime").
+PAST_TENSE_FRAGMENT_IRREGULARS = (
+    r"ran|built|wrote|made|got|took|sent|found|kept|left|met|paid|held|"
+    r"told|drew|grew|knew|threw|flew|drove|broke|spoke|chose"
+)
+PAST_TENSE_FRAGMENT_RE = re.compile(
+    r"(?:^|[.!?]\s+)"
+    r"([A-Za-z][A-Za-z-]{2,}ed|" + PAST_TENSE_FRAGMENT_IRREGULARS + r")\s+"
+    r"(?!when\b|while\b|because\b|if\b|that\b|which\b)"
+    r"[a-zA-Z0-9`][^.!?\n]{0,120}[.!?]?",
+    re.IGNORECASE,
+)

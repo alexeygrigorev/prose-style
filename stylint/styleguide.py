@@ -30,3 +30,8 @@ def style_guide_file(name: str) -> Path:
         names = ", ".join(files)
         raise KeyError(f"unknown style guide document '{name}' (choose one of: {names})")
     return files[normalized]
+
+
+def agents_guide_file() -> Path:
+    """Return the short agent-facing guide document."""
+    return style_guide_path() / "agents.md"

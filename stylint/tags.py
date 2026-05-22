@@ -21,6 +21,7 @@ class Tag(str, Enum):
     BARE_URL = "bare-url"
     ANGLE_URL = "angle-url"
     FRONTMATTER_BLANK = "frontmatter-blank"
+    BLOCKQUOTE_LONG = "blockquote-long"
     # Headings
     HEADING_QUESTION_WORD = "heading-question-word"
     HEADING_QUESTION_MARK = "heading-question-mark"
@@ -44,6 +45,7 @@ class Tag(str, Enum):
     SEMICOLON = "semicolon"
     CLEFT = "cleft"
     GERUND_OPENER = "gerund-opener"
+    PAST_TENSE_FRAGMENT = "past-tense-fragment"
     # Paragraph / sentence shape
     PARAGRAPH_TOO_LONG = "paragraph-too-long"
     LONG_SENTENCE = "long-sentence"

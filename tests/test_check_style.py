@@ -126,6 +126,10 @@ def test_banned_word_negative(tmp_path):
         "leaned on",
         "one clear",
         "reusable principle",
+        "rule of thumb",
+        "nothing fancy",
+        "for follow-up reading",
+        "nails it",
     ],
 )
 def test_banned_phrase_single_line_positive(tmp_path, phrase):
@@ -140,6 +144,13 @@ def test_banned_phrase_single_line_negative(tmp_path):
     assert not any("banned phrase" in e for e in errors)
 
 
+@pytest.mark.parametrize("word", ["inspect", "love"])
+def test_new_banned_words_positive(tmp_path, word):
+    root, page = make_page(tmp_path, f"We {word} the result.\n")
+    errors = check_page(root, page)
+    assert any(f"[banned-word] '{word}'" in e for e in errors)
+
+
 def test_banned_phrase_pattern_below_positive(tmp_path):
     root, page = make_page(tmp_path, "The type below matches that shape.\n")
     errors = check_page(root, page)
@@ -150,6 +161,101 @@ def test_banned_phrase_pattern_below_negative(tmp_path):
     root, page = make_page(tmp_path, "Below, run the command from the project root.\n")
     errors = check_page(root, page)
     assert not any("the/a ... below" in e for e in errors)
+
+
+@pytest.mark.parametrize(
+    "body, label",
+    [
+        ("Here's a helper that formats the rows.\n", "here is a ..."),
+        ("Here is the helper that formats the rows.\n", "here is a ..."),
+        ("That buys us a shorter prompt.\n", "... buys us"),
+        ("## Scope\n\nWe build the app.\n", "scope/source material opener"),
+        ("Source material: transcript and notes.\n", "scope/source material opener"),
+        ("This write-up is based on a transcript.\n", "this write-up is based on"),
+        (
+            "The previous lesson put a topic guardrail in front of the FAQ agent.\n",
+            "content as actor",
+        ),
+        (
+            "This section builds the final runner.\n",
+            "content as actor",
+        ),
+        (
+            "The tutorial installs the package and configures the server.\n",
+            "content as actor",
+        ),
+        (
+            "The README deploys the Lambda function.\n",
+            "content as actor",
+        ),
+    ],
+)
+def test_banned_phrase_new_general_patterns_positive(tmp_path, body, label):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert any(f"[banned-phrase] '{label}'" in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "body, label",
+    [
+        (
+            "The result is ssh-auto-forward-android, written in Kotlin.\n",
+            "the/a ... result is",
+        ),
+        (
+            "A small result was that the command stopped failing.\n",
+            "the/a ... result is",
+        ),
+        (
+            "The flow is simple. I open the app and tap Connect.\n",
+            "the/a ... flow is",
+        ),
+        (
+            "The setup is solid: the server is accessible from anywhere.\n",
+            "the/a ... setup is",
+        ),
+        (
+            "The final hurdle is input from the phone.\n",
+            "the/a ... hurdle is",
+        ),
+        (
+            "A recent example: I needed to select banners.\n",
+            "the/a ... example:",
+        ),
+        (
+            "Another practical option is to post screenshots to the issue.\n",
+            "the/a ... option is",
+        ),
+    ],
+)
+def test_banned_phrase_topic_introducer_patterns_positive(tmp_path, body, label):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert any(f"[banned-phrase] '{label}'" in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "body, label",
+    [
+        (
+            "I open the app, and the flow is simple enough to debug.\n",
+            "the/a ... flow is",
+        ),
+        (
+            "We shipped the first version, and the result is easier to explain now.\n",
+            "the/a ... result is",
+        ),
+        (
+            "Use the option when the API returns partial data.\n",
+            "the/a ... option is",
+        ),
+    ],
+)
+def test_banned_phrase_topic_introducer_patterns_negative(tmp_path, body, label):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert not any(label in e for e in errors), errors
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +337,65 @@ def test_banned_opener_negative(tmp_path):
     root, page = make_page(tmp_path, "We wire up the handler.\n")
     errors = check_page(root, page)
     assert not any("banned opener" in e for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# Short label-colon lines
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "Rule of thumb:\n\nIf briefing the agent takes longer, do it yourself.\n",
+        "Nothing fancy:\n\nless typing.\n",
+    ],
+)
+def test_short_label_colon_positive(tmp_path, body):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert any("[label-colon] short label-colon line" in e for e in errors)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "Note:\n\nThis is intentionally a callout.\n",
+        "Important:\n\nRun this before deploying.\n",
+        "Run this command from the project root:\n\n```bash\nmake test\n```\n",
+        "What we cover:\n\n- Search\n- Reranking\n",
+        "Install minsearch:\n\n```bash\nuv add minsearch\n```\n",
+    ],
+)
+def test_short_label_colon_negative(tmp_path, body):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert not any("short label-colon line" in e for e in errors)
+
+
+def test_long_blockquote_positive(tmp_path):
+    body = (
+        "Intro sentence.\n\n"
+        "> One quoted line.\n"
+        "> Two quoted lines.\n"
+        "> Three quoted lines.\n"
+        "> Four quoted lines.\n"
+    )
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert any("[blockquote-long]" in e for e in errors)
+
+
+def test_short_blockquote_negative(tmp_path):
+    body = (
+        "Intro sentence.\n\n"
+        "> One quoted line.\n"
+        "> Two quoted lines.\n"
+        "> Three quoted lines.\n"
+    )
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert not any("[blockquote-long]" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -522,6 +687,46 @@ def test_gerund_leading_sentence_negative(tmp_path):
     root, page = make_page(tmp_path, "Spring loaded values appear here.\n")
     errors = check_page(root, page)
     assert not any("sentence opens with '-ing'" in e for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# Subjectless past-tense fragments
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "body, verb",
+    [
+        ("Ran the workshop yesterday.\n", "Ran"),
+        ("Built the app from scratch.\n", "Built"),
+        ("Finished app deployment.\n", "Finished"),
+        ("Managed runtime handles the event loop.\n", "Managed"),
+        ("Generated files go into the output folder.\n", "Generated"),
+        ("Added tests for the parser.\n", "Added"),
+        ("Managed by the platform, the runtime starts on demand.\n", "Managed"),
+    ],
+)
+def test_past_tense_fragment_positive(tmp_path, body, verb):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert any(
+        f"[past-tense-fragment] sentence starts with past-tense action or participle '{verb}'" in e
+        for e in errors
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "I ran the workshop yesterday.\n",
+        "We build the app from scratch.\n",
+        "The generated files go into the output folder.\n",
+    ],
+)
+def test_past_tense_fragment_negative(tmp_path, body):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert not any("[past-tense-fragment]" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------

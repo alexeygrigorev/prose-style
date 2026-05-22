@@ -7,7 +7,12 @@ import sys
 from .discovery import iter_markdown_pages
 from .lint import check_page
 from .output import print_findings
-from .styleguide import style_guide_file, style_guide_files, style_guide_path
+from .styleguide import (
+    agents_guide_file,
+    style_guide_file,
+    style_guide_files,
+    style_guide_path,
+)
 from .tags import Tag
 from .version import __version__
 
@@ -15,6 +20,11 @@ from .version import __version__
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Check mechanical markdown style rules.",
+        epilog=(
+            "Agent workflow: run 'stylint --agents' first to see which "
+            "style guide to use before editing, during structure changes, "
+            "and before the final full check."
+        ),
     )
     parser.add_argument(
         "paths",
@@ -33,9 +43,27 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="PATTERN",
+        help=(
+            "Exclude files or folders by fnmatch pattern. Can be repeated "
+            "or comma-separated, e.g. --exclude _docs --exclude AGENTS.md."
+        ),
+    )
+    parser.add_argument(
         "--list-tags",
         action="store_true",
         help="Print all known rule tags and exit.",
+    )
+    parser.add_argument(
+        "--agents",
+        action="store_true",
+        help=(
+            "Print the short agent editing checklist: when to read each "
+            "style guide and how to verify edits."
+        ),
     )
     parser.add_argument(
         "--version",
@@ -44,14 +72,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--style-guide",
-        action="store_true",
-        help="Print the installed style guide directory and document paths.",
-    )
-    parser.add_argument(
-        "--print-style-guide",
         metavar="NAME",
-        choices=["voice", "formatting", "code-style", "polish"],
-        help="Print one bundled style guide document to stdout.",
+        nargs="?",
+        const="",
+        help=(
+            "Print the installed style guide paths. Pass a guide name "
+            "(voice, formatting, code-style, polish) to print that document."
+        ),
     )
     return parser.parse_args()
 
@@ -64,14 +91,26 @@ def main() -> int:
             print(tag.value)
         return 0
 
-    if args.style_guide:
+    if args.agents:
+        print(agents_guide_file().read_text(encoding="utf-8"), end="")
+        return 0
+
+    if args.style_guide == "":
         print(style_guide_path())
         for name, path in style_guide_files().items():
             print(f"{name}: {path}")
         return 0
 
-    if args.print_style_guide:
-        path = style_guide_file(args.print_style_guide)
+    if args.style_guide:
+        try:
+            path = style_guide_file(args.style_guide)
+        except KeyError:
+            print(
+                "Unknown style guide. Use one of: "
+                + ", ".join(style_guide_files()),
+                file=sys.stderr,
+            )
+            return 2
         print(path.read_text(encoding="utf-8"), end="")
         return 0
 
@@ -96,8 +135,15 @@ def main() -> int:
         return 2
     ignore_tags = {Tag(t) for t in ignore_list}
 
+    exclude_patterns = [
+        pattern.strip()
+        for raw_exclude in args.exclude
+        for pattern in raw_exclude.split(",")
+        if pattern.strip()
+    ]
+
     paths = [Path(p) for p in args.paths]
-    pages = iter_markdown_pages(paths)
+    pages = iter_markdown_pages(paths, exclude_patterns)
     if not pages:
         print("No markdown files found.", file=sys.stderr)
         return 0

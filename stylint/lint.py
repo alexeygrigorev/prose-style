@@ -55,8 +55,38 @@ def check_page(root: Path, path: Path) -> list[Finding]:
     last_heading_line: int | None = None
     seen_prose_since_heading = False
     previous_code_line_blank = False
+    blockquote_start: int | None = None
+    blockquote_line_count = 0
+    pending_short_label_line: int | None = None
 
     paragraph_lines: list[tuple[int, str]] = []
+
+    def is_short_label_colon_line(value: str) -> bool:
+        match = SHORT_LABEL_COLON_RE.match(value)
+        if not match:
+            return False
+        label = match.group(0)[:-1].lower()
+        return label not in CALLOUT_LABELS
+
+    def emit_short_label_if_pending() -> None:
+        nonlocal pending_short_label_line
+        if pending_short_label_line is None:
+            return
+        errors.append(
+            Finding(
+                rel,
+                pending_short_label_line,
+                Tag.LABEL_COLON,
+                "short label-colon line with 2-3 words. "
+                "Use it only as a lead-in to a list or code block; "
+                "otherwise drop the label and state the point directly.",
+            )
+        )
+        pending_short_label_line = None
+
+    def clear_short_label_if_pending() -> None:
+        nonlocal pending_short_label_line
+        pending_short_label_line = None
 
     def flush_paragraph() -> None:
         if not paragraph_lines:
@@ -71,6 +101,20 @@ def check_page(root: Path, path: Path) -> list[Finding]:
         else:
             flush_state["this_is_code_lead_in_line"] = None
         paragraph_lines.clear()
+
+    def flush_blockquote() -> None:
+        nonlocal blockquote_start, blockquote_line_count
+        if blockquote_start is None:
+            return
+        if blockquote_line_count > BLOCKQUOTE_MAX_LINES:
+            errors.append(Finding(
+                rel,
+                blockquote_start,
+                Tag.BLOCKQUOTE_LONG,
+                "blockquote is longer than 3 lines; rework it into prose or a subsection",
+            ))
+        blockquote_start = None
+        blockquote_line_count = 0
 
     def emit_lead_in_multi_if_pending() -> None:
         """If the last flushed paragraph was multi-sentence and ended
@@ -102,6 +146,9 @@ def check_page(root: Path, path: Path) -> list[Finding]:
         stripped = line.strip()
         starts_fence = line.lstrip().startswith("```")
 
+        if not BLOCKQUOTE_RE.match(line):
+            flush_blockquote()
+
         if not in_code and previous_code_block_end is not None and stripped:
             if starts_fence:
                 errors.append(Finding(
@@ -113,6 +160,7 @@ def check_page(root: Path, path: Path) -> list[Finding]:
         if starts_fence:
             flush_paragraph()
             if not in_code:
+                clear_short_label_if_pending()
                 emit_lead_in_multi_if_pending()
                 emit_this_is_code_lead_in_if_pending()
             if not in_code:
@@ -153,11 +201,15 @@ def check_page(root: Path, path: Path) -> list[Finding]:
 
         if FOOTNOTE_DEF_RE.match(line):
             flush_paragraph()
+            emit_short_label_if_pending()
             continue
 
         if HEADING_RE.match(line):
             flush_paragraph()
+            emit_short_label_if_pending()
             errors.extend(check_heading(line, line_no, rel))
+            plain = strip_inline_code(strip_link_urls(line))
+            errors.extend(check_banned_line(line, plain, line_no, rel))
             last_heading_line = line_no
             seen_prose_since_heading = False
             continue
@@ -166,6 +218,7 @@ def check_page(root: Path, path: Path) -> list[Finding]:
             flush_paragraph()
         elif LIST_RE.match(line):
             flush_paragraph()
+            clear_short_label_if_pending()
             emit_lead_in_multi_if_pending()
             if last_heading_line is not None and not seen_prose_since_heading:
                 errors.append(Finding(
@@ -176,8 +229,12 @@ def check_page(root: Path, path: Path) -> list[Finding]:
             seen_prose_since_heading = True
         elif BLOCKQUOTE_RE.match(line) or line.startswith("|"):
             flush_paragraph()
+            emit_short_label_if_pending()
             seen_prose_since_heading = True
             if BLOCKQUOTE_RE.match(line):
+                if blockquote_start is None:
+                    blockquote_start = line_no
+                blockquote_line_count += 1
                 # Blockquotes are verbatim quoted material (testimonials,
                 # citations). Skip prose-level checks.
                 continue
@@ -188,12 +245,19 @@ def check_page(root: Path, path: Path) -> list[Finding]:
             errors.append(check_table_row(rel, line_no))
             continue
         elif line.lstrip().startswith("<"):
+            emit_short_label_if_pending()
             # HTML markup (figure, img, figcaption, video, iframe).
             # Don't accumulate into paragraph_lines so the word count
             # of figcaption text + HTML attribute strings doesn't
             # trigger long-sentence. Still run inline rules below.
             seen_prose_since_heading = True
+        elif is_short_label_colon_line(stripped):
+            flush_paragraph()
+            emit_short_label_if_pending()
+            pending_short_label_line = line_no
+            seen_prose_since_heading = True
         else:
+            emit_short_label_if_pending()
             seen_prose_since_heading = True
             paragraph_lines.append((line_no, stripped))
 
@@ -205,6 +269,8 @@ def check_page(root: Path, path: Path) -> list[Finding]:
         errors.extend(check_banned_line(line, plain, line_no, rel))
 
     flush_paragraph()
+    emit_short_label_if_pending()
+    flush_blockquote()
 
     errors.extend(check_now_lets_overuse(now_lets_hits, rel))
 
