@@ -18,6 +18,13 @@ git clone https://github.com/alexeygrigorev/stylint ~/git/stylint
 uv tool install --from ~/git/stylint stylint
 ```
 
+For a local checkout you edit often, add this repo's virtualenv binaries to
+`~/.bashrc`:
+
+```bash
+./install.sh
+```
+
 These are the common commands.
 
 ```bash
