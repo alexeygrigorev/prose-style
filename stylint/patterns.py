@@ -220,6 +220,7 @@ BANNED_PHRASES: dict[str, str] = {
     "stands in for": "use 'replaces', 'simulates', or 'we use X to fake Y'",
     "packaged up": "use 'created', 'stored', or name the object directly",
     "apply the same pattern": "name the concrete change instead",
+    "is a good example": "start with 'For example,' and the concrete case",
     "diverse array": "drop the puffery",
     "commitment to excellence": "drop the puffery",
     "boasts a": "use 'has'",

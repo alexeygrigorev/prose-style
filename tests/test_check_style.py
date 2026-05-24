@@ -146,6 +146,7 @@ def test_shape_allowed_for_numpy(tmp_path, body):
         "stands in for",
         "packaged up",
         "apply the same pattern",
+        "is a good example",
     ],
 )
 def test_banned_phrase_single_line_positive(tmp_path, phrase):
