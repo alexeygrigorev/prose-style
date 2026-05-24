@@ -141,6 +141,7 @@ BANNED_WORDS: dict[str, str] = {
     "non-negotiable": "drop the corporate-speak; name what is actually required",
     "inspect": "use 'look at' unless this is an exact API/tool word",
     "love": "use 'like' or name the concrete reason",
+    "shape": "use a concrete word like 'structure', 'version', or name the code directly; keep only for NumPy array shapes",
 }
 
 # Multi-word banned phrases. Substring match, case-insensitive.
@@ -216,6 +217,9 @@ BANNED_PHRASES: dict[str, str] = {
     "reusable principle": "name the workflow or habit directly",
     "serves as": "use 'is'",
     "stands as": "use 'is'",
+    "stands in for": "use 'replaces', 'simulates', or 'we use X to fake Y'",
+    "packaged up": "use 'created', 'stored', or name the object directly",
+    "apply the same pattern": "name the concrete change instead",
     "diverse array": "drop the puffery",
     "commitment to excellence": "drop the puffery",
     "boasts a": "use 'has'",
@@ -351,6 +355,21 @@ BANNED_PHRASE_PATTERNS: dict[str, tuple[re.Pattern[str], str]] = {
         ),
         "content does not act; write 'in the previous lesson, we added' "
         "or name the concrete code/output",
+    ),
+    "need ... ideas": (
+        re.compile(
+            r"\b(?:we|you|i|they)\s+need(?:\s+\w+){0,3}\s+ideas?\b",
+            re.IGNORECASE,
+        ),
+        "name the concrete concepts, steps, or tasks instead of saying "
+        "the reader needs ideas",
+    ),
+    "first, how do we": (
+        re.compile(
+            r"(?:^|[.!?]\s+)first,\s+how\s+do\s+we\b",
+            re.IGNORECASE,
+        ),
+        "avoid rhetorical question scaffolding; state the first action directly",
     ),
     "scope/source material opener": (
         re.compile(

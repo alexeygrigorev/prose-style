@@ -59,7 +59,12 @@ def _two_word_opener(sentence: str) -> str:
     return " ".join(words[:2]).lower() if len(words) >= 2 else ""
 
 
-def check_paragraph(paragraph_lines: list[tuple[int, str]], rel) -> tuple[list[Finding], int | None]:
+def check_paragraph(
+    paragraph_lines: list[tuple[int, str]],
+    rel,
+    *,
+    allow_questions: bool = False,
+) -> tuple[list[Finding], int | None]:
     if not paragraph_lines:
         return [], None
 
@@ -68,6 +73,19 @@ def check_paragraph(paragraph_lines: list[tuple[int, str]], rel) -> tuple[list[F
     joined_raw = " ".join(text for _, text in paragraph_lines)
     joined = strip_inline_code(strip_link_urls(joined_raw))
     joined_lower = joined.lower()
+
+    if "?" in joined and not allow_questions:
+        findings.append(
+            Finding(
+                rel,
+                start_line,
+                Tag.PROSE_QUESTION,
+                "question in prose. In technical docs, use questions only "
+                "in Q&A sections. Rewrite as a direct statement, move it "
+                "under a Q&A heading, or ignore 'prose-question' for a real "
+                "Q&A file",
+            )
+        )
 
     sentence_count = count_sentences(joined)
     if sentence_count > PARAGRAPH_MAX_SENTENCES:

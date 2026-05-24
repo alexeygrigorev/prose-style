@@ -59,6 +59,7 @@ class Tag(str, Enum):
     LABEL_COLON = "label-colon"
     META_FRAMING = "meta-framing"
     QUESTION_OPENER = "question-opener"
+    PROSE_QUESTION = "prose-question"
     REPEATED_AND = "repeated-and"
     # File-level
     NOW_LETS_OVERUSE = "now-lets-overuse"

@@ -97,7 +97,7 @@ def test_frontmatter_with_blank_line_is_clean(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("word", ["very", "delve", "faithful", "prose"])
+@pytest.mark.parametrize("word", ["very", "delve", "faithful", "prose", "shape"])
 def test_banned_word_positive(tmp_path, word):
     root, page = make_page(tmp_path, f"This is {word} important.\n")
     errors = check_page(root, page)
@@ -108,6 +108,19 @@ def test_banned_word_negative(tmp_path):
     root, page = make_page(tmp_path, "This is fine text with no flagged words.\n")
     errors = check_page(root, page)
     assert not any("banned word" in e for e in errors)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "The NumPy shape is `(10, 3)`.\n",
+        "`np.array(data).shape` returns the dimensions.\n",
+    ],
+)
+def test_shape_allowed_for_numpy(tmp_path, body):
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert not any("[banned-word] 'shape'" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +143,9 @@ def test_banned_word_negative(tmp_path):
         "nothing fancy",
         "for follow-up reading",
         "nails it",
+        "stands in for",
+        "packaged up",
+        "apply the same pattern",
     ],
 )
 def test_banned_phrase_single_line_positive(tmp_path, phrase):
@@ -187,6 +203,18 @@ def test_banned_phrase_pattern_below_negative(tmp_path):
         (
             "The README deploys the Lambda function.\n",
             "content as actor",
+        ),
+        (
+            "We need two ideas from Python async.\n",
+            "need ... ideas",
+        ),
+        (
+            "You need a few ideas before running the code.\n",
+            "need ... ideas",
+        ),
+        (
+            "First, how do we wait for one async call?\n",
+            "first, how do we",
         ),
     ],
 )
@@ -413,6 +441,30 @@ def test_question_word_heading_negative(tmp_path):
     root, page = make_page(tmp_path, "## Reasons this matters\n\nSome prose here.\n")
     errors = check_page(root, page)
     assert not any("avoid question-word headings" in e for e in errors)
+
+
+def test_question_in_prose_positive(tmp_path):
+    body = "We need to decide this first. How do we wait for one async call?\n"
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert any("[prose-question]" in e for e in errors)
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "## Q&A",
+        "## Q/A",
+        "## Questions",
+        "## FAQ",
+        "## Questions and answers",
+    ],
+)
+def test_question_in_qa_section_negative(tmp_path, heading):
+    body = f"{heading}\n\nHow do we wait for one async call?\n"
+    root, page = make_page(tmp_path, body)
+    errors = check_page(root, page)
+    assert not any("[prose-question]" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------

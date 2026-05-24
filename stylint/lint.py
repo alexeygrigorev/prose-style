@@ -58,8 +58,22 @@ def check_page(root: Path, path: Path) -> list[Finding]:
     blockquote_start: int | None = None
     blockquote_line_count = 0
     pending_short_label_line: int | None = None
+    allow_questions_in_section = False
 
     paragraph_lines: list[tuple[int, str]] = []
+
+    def heading_allows_questions(line: str) -> bool:
+        text = strip_inline_code(strip_link_urls(line))
+        text = text.lstrip("#").strip().lower()
+        return (
+            "q&a" in text
+            or "q/a" in text
+            or "q and a" in text
+            or "questions and answers" in text
+            or text in {"questions", "faq"}
+            or text.startswith("questions ")
+            or text.startswith("faq ")
+        )
 
     def is_short_label_colon_line(value: str) -> bool:
         match = SHORT_LABEL_COLON_RE.match(value)
@@ -91,7 +105,11 @@ def check_page(root: Path, path: Path) -> list[Finding]:
     def flush_paragraph() -> None:
         if not paragraph_lines:
             return
-        findings, pending_multi_colon_line = check_paragraph(paragraph_lines, rel)
+        findings, pending_multi_colon_line = check_paragraph(
+            paragraph_lines,
+            rel,
+            allow_questions=allow_questions_in_section,
+        )
         errors.extend(findings)
         flush_state["multi_colon_line"] = pending_multi_colon_line
         start_line = paragraph_lines[0][0]
@@ -212,6 +230,7 @@ def check_page(root: Path, path: Path) -> list[Finding]:
             errors.extend(check_banned_line(line, plain, line_no, rel))
             last_heading_line = line_no
             seen_prose_since_heading = False
+            allow_questions_in_section = heading_allows_questions(line)
             continue
 
         if not stripped:

@@ -25,6 +25,8 @@ def check_banned_line(line: str, plain: str, line_no: int, rel) -> list[Finding]
     findings: list[Finding] = []
     plain_lower = plain.lower()
     for word, hint in BANNED_WORDS.items():
+        if word == "shape" and ("numpy" in plain_lower or "np." in plain_lower):
+            continue
         if WORD_RES[word].search(plain):
             findings.append(Finding(rel, line_no, Tag.BANNED_WORD, f"'{word}' - {hint}"))
 
